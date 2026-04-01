@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:v2.tauri.app)",
+      "Bash(npx tauri:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(cargo check:*)",
+      "Bash(where cargo:*)",
+      "Bash(/c/Users/bruce/.cargo/bin/cargo --version)",
+      "Bash(/c/Users/bruce/.cargo/bin/cargo check:*)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}

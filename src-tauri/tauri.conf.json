@@ -1,0 +1,68 @@
+{
+  "productName": "ClipStack",
+  "version": "0.1.0",
+  "identifier": "com.clipstack.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "ClipStack",
+        "width": 380,
+        "height": 520,
+        "minWidth": 320,
+        "minHeight": 400,
+        "maxWidth": 600,
+        "maxHeight": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": false,
+        "shadow": false,
+        "transparent": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: https://asset.localhost; style-src 'self' 'unsafe-inline'"
+    },
+    "withGlobalTauri": false
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [],
+    "copyright": "",
+    "category": "Utility",
+    "shortDescription": "Lightweight clipboard manager",
+    "longDescription": "ClipStack is a lightweight, privacy-first clipboard manager that lives in your menu bar or system tray.",
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null,
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  }
+}

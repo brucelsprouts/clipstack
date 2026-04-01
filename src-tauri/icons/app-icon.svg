@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="boardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0f6ff"/>
+      <stop offset="100%" style="stop-color:#c7dafe"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="26" flood-color="#1e3a8a" flood-opacity="0.28"/>
+    </filter>
+    <filter id="sheetShadow" x="-20%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="7" stdDeviation="12" flood-color="#1e3a8a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!--
+    No background — transparent icon. Content scaled 1.35× from center (512, 507)
+    for better fill of the 1024×1024 frame.
+    Clip top: y=78, Board: x=188 y=129 w=648 h=756, Board bottom: y=885
+  -->
+
+  <!-- Sheet layer 3 (back, most rotated) -->
+  <rect x="188" y="129" width="648" height="756" rx="35" ry="35"
+        fill="#93c5fd" opacity="0.72"
+        transform="rotate(-7 512 507)" filter="url(#sheetShadow)"/>
+
+  <!-- Sheet layer 2 (middle) -->
+  <rect x="188" y="129" width="648" height="756" rx="35" ry="35"
+        fill="#bfdbfe" opacity="0.90"
+        transform="rotate(-3 512 507)" filter="url(#sheetShadow)"/>
+
+  <!-- Main clipboard board -->
+  <rect x="188" y="129" width="648" height="756" rx="35" ry="35"
+        fill="url(#boardGrad)" filter="url(#shadow)"/>
+
+  <!-- Clip housing -->
+  <rect x="345" y="78" width="335" height="119" rx="27" ry="27"
+        fill="#1e40af"/>
+  <rect x="374" y="101" width="275" height="73" rx="18" ry="18"
+        fill="#3b82f6" opacity="0.55"/>
+  <rect x="436" y="111" width="151" height="14" rx="7" ry="7"
+        fill="#93c5fd" opacity="0.85"/>
+
+  <!-- Content lines -->
+  <rect x="274" y="330" width="475" height="32" rx="16" ry="16" fill="#2563eb" opacity="0.85"/>
+  <rect x="274" y="398" width="367" height="24" rx="12" ry="12" fill="#2563eb" opacity="0.40"/>
+  <rect x="274" y="449" width="427" height="24" rx="12" ry="12" fill="#2563eb" opacity="0.40"/>
+  <rect x="274" y="500" width="313" height="24" rx="12" ry="12" fill="#2563eb" opacity="0.35"/>
+  <rect x="274" y="552" width="397" height="24" rx="12" ry="12" fill="#2563eb" opacity="0.28"/>
+  <rect x="274" y="603" width="265" height="24" rx="12" ry="12" fill="#2563eb" opacity="0.25"/>
+</svg>

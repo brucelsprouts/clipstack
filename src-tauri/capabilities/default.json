@@ -1,0 +1,27 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for ClipStack desktop app",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-position",
+    "core:window:allow-outer-position",
+    "core:window:allow-outer-size",
+    "core:window:allow-is-visible",
+    "core:window:allow-start-dragging",
+    "core:app:allow-app-show",
+    "core:app:allow-app-hide",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register-all",
+    "global-shortcut:allow-unregister-all"
+  ]
+}
