@@ -3,6 +3,7 @@
 /// All frontend ↔ backend communication goes through these typed commands.
 /// Each command validates its inputs, delegates to the appropriate module,
 /// and returns a serialisable result or a user-friendly error string.
+use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use tauri::{AppHandle, Manager, State};
 
 use crate::{
@@ -201,7 +202,7 @@ fn write_to_clipboard(clip: &Clip) -> Result<(), Box<dyn std::error::Error>> {
             let plain = crate::clipboard::strip_html_tags(&clip.content);
             write_html_to_clipboard(&clip.content, &plain)
         }
-        ClipKind::Image => write_text_to_clipboard(&clip.content),
+        ClipKind::Image => write_image_to_clipboard(&clip.content),
     }
 }
 
@@ -303,6 +304,85 @@ fn write_html_to_clipboard(html: &str, plain: &str) -> Result<(), Box<dyn std::e
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn write_html_to_clipboard(_html: &str, _plain: &str) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
+}
+
+/// Decode a base64-encoded PNG/BMP and write it to the clipboard as image data.
+/// Writes both the binary image format (CF_DIB for BMP, "PNG" custom for PNG) and
+/// an HTML Format entry with an <img> element so web-based editors can paste it.
+fn write_image_to_clipboard(b64: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = B64.decode(b64)?;
+    write_image_bytes_to_clipboard(b64, &bytes)
+}
+
+#[cfg(target_os = "windows")]
+fn write_image_bytes_to_clipboard(b64: &str, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    use windows::Win32::{
+        Foundation::HANDLE,
+        System::{
+            DataExchange::{CloseClipboard, EmptyClipboard, OpenClipboard, RegisterClipboardFormatW, SetClipboardData},
+            Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
+            Ole::CF_DIB,
+        },
+        UI::WindowsAndMessaging::GetDesktopWindow,
+    };
+    use windows::core::w;
+
+    let is_bmp = bytes.starts_with(b"BM");
+    let mime = if is_bmp { "image/bmp" } else { "image/png" };
+
+    // Build HTML clipboard entry: <img> lets web-based editors (Gmail, Docs, etc.)
+    // paste the image as a proper element rather than receiving nothing or raw text.
+    let html_img = format!(r#"<img src="data:{};base64,{}">"#, mime, b64);
+    let cf_html_str = build_cf_html(&html_img);
+    let cf_html_bytes: Vec<u8> = cf_html_str.bytes().chain(std::iter::once(0)).collect();
+
+    unsafe {
+        let html_format = RegisterClipboardFormatW(w!("HTML Format"));
+        let png_format  = if !is_bmp { RegisterClipboardFormatW(w!("PNG")) } else { 0 };
+
+        OpenClipboard(GetDesktopWindow())?;
+        EmptyClipboard()?;
+
+        // Write binary image data so native apps (Paint, Photoshop, Word …) can paste.
+        if is_bmp && bytes.len() > 14 {
+            // CF_DIB: strip the 14-byte BITMAPFILEHEADER — apps expect raw DIB.
+            let dib = &bytes[14..];
+            let h = GlobalAlloc(GMEM_MOVEABLE, dib.len())?;
+            let ptr = GlobalLock(h);
+            std::ptr::copy_nonoverlapping(dib.as_ptr(), ptr as *mut u8, dib.len());
+            GlobalUnlock(h).ok();
+            SetClipboardData(CF_DIB.0 as u32, HANDLE(h.0))?;
+        } else if !is_bmp && png_format != 0 {
+            let h = GlobalAlloc(GMEM_MOVEABLE, bytes.len())?;
+            let ptr = GlobalLock(h);
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), ptr as *mut u8, bytes.len());
+            GlobalUnlock(h).ok();
+            SetClipboardData(png_format, HANDLE(h.0))?;
+        }
+
+        // Write HTML Format with <img> for web-based editors.
+        if html_format != 0 {
+            let h = GlobalAlloc(GMEM_MOVEABLE, cf_html_bytes.len())?;
+            let ptr = GlobalLock(h);
+            std::ptr::copy_nonoverlapping(cf_html_bytes.as_ptr(), ptr as *mut u8, cf_html_bytes.len());
+            GlobalUnlock(h).ok();
+            SetClipboardData(html_format, HANDLE(h.0))?;
+        }
+
+        CloseClipboard()?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn write_image_bytes_to_clipboard(_b64: &str, _bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    // macOS image clipboard requires Objective-C bindings; not supported yet.
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn write_image_bytes_to_clipboard(_b64: &str, _bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 

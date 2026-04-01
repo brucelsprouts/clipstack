@@ -108,9 +108,7 @@ export const ClipItem = memo(function ClipItem({
 
       {/* Right: meta + actions */}
       <div className="clip-item__meta">
-        {clip.kind === "html" && (
-          <span className="clip-item__kind-badge" aria-label="Rich text">HTML</span>
-        )}
+
         <span className="clip-item__time">{formatRelativeTime(clip.createdAt)}</span>
         <div className="clip-item__actions">
           <button

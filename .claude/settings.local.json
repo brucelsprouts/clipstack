@@ -9,7 +9,8 @@
       "Bash(where cargo:*)",
       "Bash(/c/Users/bruce/.cargo/bin/cargo --version)",
       "Bash(/c/Users/bruce/.cargo/bin/cargo check:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(cargo clean:*)"
     ]
   }
 }

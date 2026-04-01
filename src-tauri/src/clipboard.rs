@@ -59,6 +59,21 @@ fn monitor_loop(app: AppHandle, running: Arc<AtomicBool>) {
     while running.load(Ordering::Relaxed) {
         thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
 
+        // --- Image (checked first — browsers place both PNG and HTML on the
+        //     clipboard when copying images; prefer the raw pixels over HTML) ---
+        if let Ok(Some(png_bytes)) = read_clipboard_image() {
+            if png_bytes.len() > MAX_IMAGE_BYTES {
+                warn!("Clipboard image too large ({} bytes), skipping.", png_bytes.len());
+                continue;
+            }
+            let hash = quick_hash(&png_bytes);
+            if Some(hash) != last_image_hash {
+                last_image_hash = Some(hash);
+                save_image_clip(&app, png_bytes);
+            }
+            continue; // Skip HTML/text checks when image data is present.
+        }
+
         // --- Rich HTML (checked before plain text — higher fidelity) ---
         if let Ok(Some(html)) = read_clipboard_html() {
             if html.len() > MAX_TEXT_BYTES {
@@ -86,20 +101,6 @@ fn monitor_loop(app: AppHandle, running: Arc<AtomicBool>) {
                 } else {
                     warn!("Clipboard text too large ({} bytes), skipping.", text.len());
                 }
-            }
-            continue; // If there's text, skip image check this cycle.
-        }
-
-        // --- Image (only checked when clipboard has no text/html) ---
-        if let Ok(Some(png_bytes)) = read_clipboard_image() {
-            if png_bytes.len() > MAX_IMAGE_BYTES {
-                warn!("Clipboard image too large ({} bytes), skipping.", png_bytes.len());
-                continue;
-            }
-            let hash = quick_hash(&png_bytes);
-            if Some(hash) != last_image_hash {
-                last_image_hash = Some(hash);
-                save_image_clip(&app, png_bytes);
             }
         }
     }
@@ -387,8 +388,18 @@ fn save_text_clip(app: &AppHandle, text: String) {
 
 fn save_image_clip(app: &AppHandle, png_bytes: Vec<u8>) {
     let state = app.state::<AppState>();
-    let db_guard = state.db.lock().unwrap();
     let b64 = B64.encode(&png_bytes);
+
+    // Skip content the app itself just wrote via copy_clip (consumes the flag).
+    {
+        let mut written = state.last_written_content.lock().unwrap();
+        if written.as_deref() == Some(b64.as_str()) {
+            *written = None;
+            return;
+        }
+    }
+
+    let db_guard = state.db.lock().unwrap();
     let preview = format!("Image ({} KB)", png_bytes.len() / 1024);
     let max_history = state.settings.lock().unwrap().max_history;
 

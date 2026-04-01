@@ -111,8 +111,30 @@ export default function App() {
 
   // Copy clip, flash the item, fade-shrink the window, then paste into previous app.
   const handleCopyAndPaste = useCallback(
-    (id: number) => {
-      handleCopy(id);
+    async (id: number) => {
+      const clip = clips.find((c) => c.id === id);
+
+      if (clip?.kind === "image") {
+        // For image clips: write to OS clipboard via Rust first (handles native apps),
+        // then also write via the browser Clipboard API with a proper Blob so that
+        // web-based editors (Gmail, Notion, Google Docs …) receive an <img> element
+        // on paste rather than nothing.
+        await handleCopy(id);
+        try {
+          const mime = clip.content.startsWith("iVBOR") ? "image/png" : "image/bmp";
+          const raw = atob(clip.content);
+          const buf = new Uint8Array(raw.length);
+          for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+          await navigator.clipboard.write([
+            new ClipboardItem({ [mime]: new Blob([buf], { type: mime }) }),
+          ]);
+        } catch {
+          // Web Clipboard API unavailable or denied — Rust write is the fallback.
+        }
+      } else {
+        await handleCopy(id);
+      }
+
       setActivatedId(id);          // accent flash on the clicked item
       setTimeout(() => {
         setIsClosing(true);        // window starts fade+scale-down
@@ -121,7 +143,7 @@ export default function App() {
         }, 160);
       }, 80);
     },
-    [handleCopy]
+    [handleCopy, clips]
   );
 
   const handleConfirmSelection = useCallback(
@@ -145,18 +167,6 @@ export default function App() {
         <div key="clips" className="view">
           <header className="app-header" data-tauri-drag-region>
             <div className="app-header__brand" data-tauri-drag-region>
-              {/* pointer-events:none so the SVG doesn't swallow the drag region */}
-              <svg width="22" height="22" viewBox="1 1 20 20" aria-hidden="true" style={{ pointerEvents: "none" }}>
-                <rect x="3.5" y="5.5" width="13" height="15" rx="2" fill="#93c5fd" opacity="0.70" transform="rotate(-5 10 13)"/>
-                <rect x="3.5" y="5.5" width="13" height="15" rx="2" fill="#bfdbfe" opacity="0.88" transform="rotate(-2 10 13)"/>
-                <rect x="3" y="5" width="13" height="15" rx="2" fill="#dbeafe"/>
-                <rect x="7" y="3" width="5.5" height="4" rx="1.2" fill="#1e40af"/>
-                <rect x="7.5" y="3.4" width="4.5" height="2.6" rx="0.8" fill="#3b82f6" opacity="0.55"/>
-                <rect x="5.5" y="10"   width="8"   height="1.6" rx="0.8" fill="#2563eb" opacity="0.85"/>
-                <rect x="5.5" y="12.5" width="6.5" height="1.4" rx="0.7" fill="#2563eb" opacity="0.45"/>
-                <rect x="5.5" y="14.8" width="7.5" height="1.4" rx="0.7" fill="#2563eb" opacity="0.40"/>
-                <rect x="5.5" y="17"   width="5.5" height="1.4" rx="0.7" fill="#2563eb" opacity="0.35"/>
-              </svg>
               <span className="app-header__title">ClipStack</span>
             </div>
             <div className="app-header__actions">
@@ -215,6 +225,7 @@ export default function App() {
             <span className="app-footer__count">
               {loading ? "…" : `${clips.length} clip${clips.length !== 1 ? "s" : ""}`}
             </span>
+            <span className="app-footer__watermark">brucelsprouts</span>
           </footer>
         </div>
       ) : (

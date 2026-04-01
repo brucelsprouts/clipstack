@@ -317,12 +317,14 @@ body {
   padding: 6px 10px;
   cursor: pointer;
   border-radius: var(--radius-sm);
-  margin: 1px 4px;
+  margin: 0 4px;
   outline: none;
   transition: background var(--dur-fast) var(--ease-out),
               transform var(--dur-fast) var(--ease-out);
   position: relative;
+  border-bottom: 1px solid var(--border);
 }
+.clip-item:last-child { border-bottom: none; }
 
 .clip-item:hover     { background: var(--surface-hover); }
 .clip-item--selected { background: var(--surface-selected); }
@@ -440,6 +442,7 @@ body {
 }
 
 .app-footer__count { font-size: 11px; color: var(--text-3); }
+.app-footer__watermark { font-size: 10px; color: var(--text-3); margin-left: auto; }
 
 /* ── Settings panel ─────────────────────────────────────────────────────────── */
 .settings-panel { display: flex; flex-direction: column; height: 100%; background: var(--surface); }
