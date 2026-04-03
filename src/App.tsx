@@ -13,56 +13,54 @@ import { pasteAndHide, reorderClips } from "@/lib/api";
 
 type View = "clips" | "settings";
 
+/** Apply theme to the document root with a smooth CSS transition. */
+function applyTheme(theme: string) {
+  const root = document.documentElement;
+  root.classList.add("theme-transitioning");
+  if (theme === "system") {
+    root.removeAttribute("data-theme");
+  } else {
+    root.setAttribute("data-theme", theme);
+  }
+  setTimeout(() => root.classList.remove("theme-transitioning"), 350);
+}
+
 export default function App() {
   const [view, setView] = useState<View>("clips");
-  // -1 = nothing highlighted; only highlight on hover/keyboard nav
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  // Incremented each time the window gains focus to re-trigger entrance animation.
   const [focusKey, setFocusKey] = useState(0);
   const appRef = useRef<HTMLDivElement>(null);
   const [isClosing, setIsClosing] = useState(false);
-  // ID of the clip that was just activated (clicked) — shows accent flash
   const [activatedId, setActivatedId] = useState<number | null>(null);
 
-  // Refs for pending hide timers so they can be cancelled if the window re-opens.
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pasteTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Set true between mousedown and mouseup to suppress animation restarts during drags.
-  const isDraggingRef = useRef(false);
+  const isDraggingRef   = useRef(false);
 
   const {
-    clips,
-    loading,
-    error: clipError,
-    search,
-    setSearch,
-    handleCopy,
-    handleTogglePin,
-    handleDelete,
-    handleClearAll,
+    clips, loading, error: clipError,
+    search, setSearch,
+    handleCopy, handleTogglePin, handleDelete, handleClearAll,
+    refresh,
   } = useClips();
 
-  const { settings, loading: settingsLoading, saveSettings } = useSettings();
+  const { settings, saveSettings } = useSettings();
 
+  // Persist the new order then refresh so the list reflects the DB order.
   const handleReorder = useCallback(async (orderedIds: number[]) => {
     await reorderClips(orderedIds).catch(console.error);
-  }, []);
+    await refresh().catch(console.error);
+  }, [refresh]);
 
-  // Apply the user's theme preference to the document root so CSS vars kick in.
+  // Apply theme whenever settings change.
   useEffect(() => {
-    const theme = settings.theme;
-    if (theme === "system") {
-      document.documentElement.removeAttribute("data-theme");
-    } else {
-      document.documentElement.setAttribute("data-theme", theme);
-    }
+    applyTheme(settings.theme);
   }, [settings.theme]);
 
   // Re-trigger entrance animation each time the window is shown.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen("tauri://focus", () => {
-      // Cancel any pending hide timers — window re-opened before they fired.
       if (closingTimerRef.current) { clearTimeout(closingTimerRef.current); closingTimerRef.current = null; }
       if (pasteTimerRef.current)   { clearTimeout(pasteTimerRef.current);   pasteTimerRef.current   = null; }
       setIsClosing(false);
@@ -70,55 +68,39 @@ export default function App() {
       setSelectedIndex(-1);
       setFocusKey((k) => k + 1);
       setView("clips");
-    }).then((fn) => {
-      unlisten = fn;
-    });
+    }).then((fn) => { unlisten = fn; });
     return () => unlisten?.();
   }, []);
 
-  // Track pointer drag state so animation restart is suppressed mid-drag.
-  // useRef keeps the value stable; listeners use capture so they fire first.
   useEffect(() => {
     const onDown = () => { isDraggingRef.current = true;  };
     const onUp   = () => { isDraggingRef.current = false; };
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('mouseup',   onUp,   true);
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("mouseup",   onUp,   true);
     return () => {
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('mouseup',   onUp,   true);
+      document.removeEventListener("mousedown", onDown, true);
+      document.removeEventListener("mouseup",   onUp,   true);
     };
   }, []);
 
-  // Restart the entrance animation in-place without remounting the tree.
-  // useLayoutEffect runs before paint, preventing the one-frame opacity-1→0 flash.
-  // Skip on initial mount (focusKey=0) and during any pointer drag.
   useLayoutEffect(() => {
     if (focusKey === 0 || isDraggingRef.current) return;
     const el = appRef.current;
     if (!el) return;
-    el.style.animation = 'none';
-    void el.offsetHeight; // force reflow so the browser registers the reset
-    el.style.animation = '';
+    el.style.animation = "none";
+    void el.offsetHeight;
+    el.style.animation = "";
   }, [focusKey]);
 
-  const handleSearch = useCallback(
-    (q: string) => {
-      setSearch(q);
-      setSelectedIndex(0);
-    },
-    [setSearch]
-  );
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setSelectedIndex(0);
+  }, [setSearch]);
 
-  // Copy clip, flash the item, fade-shrink the window, then paste into previous app.
   const handleCopyAndPaste = useCallback(
     async (id: number) => {
       const clip = clips.find((c) => c.id === id);
-
       if (clip?.kind === "image") {
-        // For image clips: write to OS clipboard via Rust first (handles native apps),
-        // then also write via the browser Clipboard API with a proper Blob so that
-        // web-based editors (Gmail, Notion, Google Docs …) receive an <img> element
-        // on paste rather than nothing.
         await handleCopy(id);
         try {
           const mime = clip.content.startsWith("iVBOR") ? "image/png" : "image/bmp";
@@ -128,19 +110,14 @@ export default function App() {
           await navigator.clipboard.write([
             new ClipboardItem({ [mime]: new Blob([buf], { type: mime }) }),
           ]);
-        } catch {
-          // Web Clipboard API unavailable or denied — Rust write is the fallback.
-        }
+        } catch { /* Web Clipboard API unavailable — Rust write is fallback */ }
       } else {
         await handleCopy(id);
       }
-
-      setActivatedId(id);          // accent flash on the clicked item
+      setActivatedId(id);
       setTimeout(() => {
-        setIsClosing(true);        // window starts fade+scale-down
-        setTimeout(() => {
-          pasteAndHide().catch(console.error);
-        }, 160);
+        setIsClosing(true);
+        setTimeout(() => { pasteAndHide().catch(console.error); }, 160);
       }, 80);
     },
     [handleCopy, clips]
@@ -161,10 +138,15 @@ export default function App() {
     onConfirm: handleConfirmSelection,
   });
 
+  const inSettings = view === "settings";
+
   return (
     <div ref={appRef} className={`app${isClosing ? " app--closing" : ""}`}>
-      {view === "clips" ? (
-        <div key="clips" className="view">
+      {/* View stack — both views stay mounted so the slide transition is smooth */}
+      <div className="view-stack">
+
+        {/* ── Clips view ── */}
+        <div className={`view${inSettings ? " view--slid-left" : ""}`}>
           <header className="app-header" data-tauri-drag-region>
             <div className="app-header__brand" data-tauri-drag-region>
               <span className="app-header__title">ClipStack</span>
@@ -195,13 +177,11 @@ export default function App() {
             </div>
           </header>
 
-          <SearchBar value={search} onChange={handleSearch} active={true} />
+          <SearchBar value={search} onChange={handleSearch} active={!inSettings} />
 
           <main className="app-main">
             {loading ? (
-              <div className="app-loading">
-                <div className="spinner" />
-              </div>
+              <div className="app-loading"><div className="spinner" /></div>
             ) : clipError ? (
               <div className="app-error">
                 <p>Failed to load history</p>
@@ -228,18 +208,18 @@ export default function App() {
             <span className="app-footer__watermark">brucelsprouts</span>
           </footer>
         </div>
-      ) : (
-        !settingsLoading && (
-          <div key="settings" className="view">
-            <SettingsPanel
-              settings={settings}
-              onSave={saveSettings}
-              onClearAll={handleClearAll}
-              onClose={() => setView("clips")}
-            />
-          </div>
-        )
-      )}
+
+        {/* ── Settings view ── */}
+        <div className={`view${!inSettings ? " view--slid-right" : ""}`}>
+          <SettingsPanel
+            settings={settings}
+            onSave={saveSettings}
+            onClearAll={handleClearAll}
+            onClose={() => setView("clips")}
+          />
+        </div>
+
+      </div>
     </div>
   );
 }

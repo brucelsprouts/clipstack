@@ -11,11 +11,11 @@ import { getSettings, updateSettings } from "@/lib/api";
 import { AppSettings } from "@/types";
 
 const DEFAULT_SETTINGS: AppSettings = {
-  shortcut: "CommandOrControl+Shift+V",
+  shortcut: "Alt+Shift+V",
   maxHistory: 500,
   launchAtStartup: true,
   excludedApps: [],
-  theme: "system",
+  theme: "glass",
 };
 
 interface UseSettingsResult {

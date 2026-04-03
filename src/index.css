@@ -155,6 +155,18 @@ body {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Smooth theme transitions ────────────────────────────────────────────────── */
+/* Added/removed by applyTheme() around data-theme attribute changes */
+.theme-transitioning,
+.theme-transitioning * {
+  transition:
+    background-color 280ms ease,
+    color 280ms ease,
+    border-color 280ms ease,
+    box-shadow 280ms ease,
+    backdrop-filter 280ms ease !important;
+}
+
 /* ── App shell ──────────────────────────────────────────────────────────────── */
 .app {
   display: flex;
@@ -185,11 +197,26 @@ body {
   pointer-events: none;
 }
 
+/* ── View stack & slide transitions ─────────────────────────────────────────── */
+.view-stack {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .view {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  background: var(--surface);
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
+
+.view--slid-left  { transform: translateX(-100%); pointer-events: none; }
+.view--slid-right { transform: translateX(100%);  pointer-events: none; }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .app-header {
@@ -297,17 +324,43 @@ body {
   color: var(--text-3);
 }
 
-.clip-list__collapse-btn {
-  display: flex; align-items: center; gap: 3px;
-  border: none; background: transparent;
-  font-size: 10px; font-weight: 600; color: var(--accent);
-  cursor: pointer; padding: 2px 4px; border-radius: var(--radius-xs);
-  text-transform: none; letter-spacing: 0;
-  transition: background var(--dur-fast);
+.clip-list__section-title {
+  display: flex; align-items: center; gap: 5px;
 }
-.clip-list__collapse-btn:hover { background: var(--surface-hover); }
 
-.clip-list__divider { height: 1px; background: var(--border); margin: 3px 10px; }
+.clip-list__section-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 14px; padding: 0 4px;
+  background: var(--surface-hover); border: 1px solid var(--border);
+  border-radius: 99px; font-size: 9px; font-weight: 700;
+  color: var(--text-3); letter-spacing: 0; text-transform: none;
+}
+
+.clip-list__collapse-btn {
+  display: flex; align-items: center; gap: 4px;
+  border: none; background: transparent;
+  color: var(--text-3); cursor: pointer;
+  padding: 2px 5px; border-radius: var(--radius-xs);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.clip-list__collapse-btn:hover { background: var(--surface-hover); color: var(--text-2); }
+
+.clip-list__more-pill {
+  font-size: 9px; font-weight: 700; letter-spacing: 0;
+  text-transform: none; color: var(--text-2);
+}
+
+.clip-list__chevron {
+  transition: transform var(--dur-med) var(--ease-spring);
+}
+.clip-list__chevron--open {
+  transform: rotate(180deg);
+}
+
+.clip-list__divider { height: 1px; background: var(--border); margin: 6px 14px; }
+
+/* Suppress item separator when it's immediately adjacent to the section divider */
+.clip-item:has(+ .clip-list__divider)::after { display: none; }
 
 /* ── Clip item ──────────────────────────────────────────────────────────────── */
 .clip-item {
@@ -322,9 +375,20 @@ body {
   transition: background var(--dur-fast) var(--ease-out),
               transform var(--dur-fast) var(--ease-out);
   position: relative;
-  border-bottom: 1px solid var(--border);
 }
-.clip-item:last-child { border-bottom: none; }
+
+/* Inset separator — doesn't touch the left/right edges */
+.clip-item::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+.clip-item:last-child::after { display: none; }
 
 .clip-item:hover     { background: var(--surface-hover); }
 .clip-item--selected { background: var(--surface-selected); }
@@ -359,6 +423,18 @@ body {
   background: var(--pin);
   border-radius: 2px;
 }
+
+.clip-item__drag-handle {
+  flex-shrink: 0;
+  display: flex; align-items: center;
+  color: var(--text-3);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--dur-fast);
+  margin-left: -2px;
+}
+.clip-item:hover .clip-item__drag-handle { opacity: 1; }
+.clip-item--dragging .clip-item__drag-handle { opacity: 0.5; }
 
 .clip-item__body { flex: 1; min-width: 0; overflow: hidden; }
 
@@ -396,7 +472,7 @@ body {
 
 .clip-item__actions {
   display: flex; gap: 1px;
-  opacity: 0;
+  opacity: 0.35;
   transition: opacity var(--dur-fast);
 }
 .clip-item:hover .clip-item__actions,
@@ -413,6 +489,10 @@ body {
 .clip-action:active { transform: scale(0.88); }
 .clip-action--pin.clip-action--active { color: var(--pin); }
 .clip-action--delete:hover { color: var(--danger); }
+.clip-action--delete-pending {
+  color: var(--danger) !important;
+  background: rgba(239, 68, 68, 0.12) !important;
+}
 
 /* ── Empty state ────────────────────────────────────────────────────────────── */
 .clip-list-empty {
@@ -460,25 +540,58 @@ body {
   font-size: 13px; font-weight: 600;
 }
 
-.settings-panel__body {
-  flex: 1; overflow-y: auto;
-  padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 16px;
+.settings-panel__status {
+  width: 28px; /* balance the back button on the left */
+  display: flex; align-items: center; justify-content: flex-end;
 }
 
-.settings-panel__footer {
-  display: flex; gap: 8px; justify-content: flex-end;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
+.settings-autosave-badge {
+  font-size: 10px; font-weight: 600; white-space: nowrap;
+  padding: 2px 6px; border-radius: 99px;
+  animation: viewIn var(--dur-fast) var(--ease-out) both;
+}
+.settings-autosave-badge--saving { color: var(--text-3); }
+.settings-autosave-badge--saved  { color: var(--accent);  background: rgba(79,140,255,.1); }
+.settings-autosave-badge--error  { color: var(--danger);  background: rgba(239,68,68,.1);  }
+
+.settings-panel__body {
+  flex: 1; overflow-y: auto;
+  padding: 7px 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+/* ── Settings cards ── */
+.settings-card {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
-.settings-section { display: flex; flex-direction: column; gap: 5px; }
-.settings-section--toggle { flex-direction: row; align-items: center; justify-content: space-between; }
-.settings-section--danger { padding-top: 6px; border-top: 1px solid var(--border); }
+.settings-card--row {
+  flex-direction: row; align-items: center; justify-content: space-between;
+  padding: 7px 10px;
+}
 
-.settings-label { font-size: 11.5px; font-weight: 600; color: var(--text-2); letter-spacing: 0.01em; }
-.settings-hint { font-size: 11px; color: var(--text-3); }
+.settings-card--danger {
+  border-color: rgba(239,68,68,.2);
+  background: rgba(239,68,68,.04);
+}
+
+.settings-card__header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-2); letter-spacing: 0.01em;
+}
+
+.settings-card__header svg { flex-shrink: 0; color: var(--text-3); }
+
+.settings-card--danger .settings-card__header { color: var(--danger); }
+.settings-card--danger .settings-card__header svg { color: var(--danger); }
+
+.settings-hint { font-size: 10.5px; color: var(--text-3); margin-top: 0; line-height: 1.4; }
 .settings-hint code {
   font-family: var(--font-mono); font-size: 10.5px;
   background: var(--surface-hover);
@@ -489,7 +602,7 @@ body {
 .settings-input {
   width: 100%; padding: 6px 10px;
   font-family: var(--font); font-size: 12.5px; color: var(--text-1);
-  background: var(--bg); border: 1px solid var(--border-strong);
+  background: var(--surface); border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm); outline: none;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
   user-select: text;
@@ -502,7 +615,6 @@ body {
 .settings-input--number { width: 80px; }
 
 .settings-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.settings-unit { font-size: 12px; color: var(--text-2); }
 
 .settings-checkbox {
   display: flex; align-items: center; gap: 5px;
@@ -510,31 +622,35 @@ body {
 }
 .settings-checkbox input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 
-.settings-error {
-  font-size: 12px; color: var(--danger);
-  padding: 7px 10px;
-  background: rgba(239,68,68,.08);
-  border-radius: var(--radius-sm); border: 1px solid rgba(239,68,68,.2);
+/* ── Theme grid — single row of 4 ── */
+.settings-theme-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
 }
 
-/* Radio group */
-.settings-radio-group {
-  display: flex; gap: 3px;
-  background: var(--bg); padding: 3px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+.settings-theme-option {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 6px 4px; cursor: pointer;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+  background: var(--surface);
 }
-.settings-radio { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.settings-radio input[type="radio"] { display: none; }
-.settings-radio span {
-  display: block; width: 100%; text-align: center;
-  padding: 4px 8px; font-size: 12px;
-  border-radius: calc(var(--radius-sm) - 2px);
-  color: var(--text-2);
-  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+.settings-theme-option input[type="radio"] { display: none; }
+.settings-theme-option:hover { background: var(--surface-hover); }
+.settings-theme-option--active {
+  border-color: var(--accent);
+  background: rgba(79,140,255,.06);
 }
-.settings-radio input[type="radio"]:checked + span {
-  background: var(--surface-raised); color: var(--text-1);
-  font-weight: 500; box-shadow: var(--shadow-sm);
+
+.settings-theme-option__label {
+  font-size: 11.5px; font-weight: 600; color: var(--text-1);
+  transition: color var(--dur-fast);
+}
+.settings-theme-option--active .settings-theme-option__label { color: var(--accent); }
+
+.settings-theme-option__desc {
+  font-size: 9.5px; color: var(--text-3); text-align: center; line-height: 1.2;
 }
 
 /* Toggle */
@@ -616,3 +732,184 @@ body {
 .dialog__title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
 .dialog__message { font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-bottom: 18px; }
 .dialog__actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GLASS THEME — frosted glass over the desktop.
+   Semi-transparent dark base + backdrop-filter blur creates the see-through
+   frosted effect. Chromatic aberration border ring simulates light refraction.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="glass"] {
+  /* Deep tinted base — dark enough for text, translucent enough to see through */
+  --bg: rgba(8, 8, 22, 0.70);
+  --surface: rgba(14, 12, 36, 0.55);
+  --surface-raised: rgba(22, 18, 52, 0.70);
+  --surface-hover: rgba(40, 50, 110, 0.40);
+  --surface-active: rgba(55, 65, 140, 0.50);
+  --surface-selected: rgba(70, 110, 255, 0.28);
+
+  /* Borders glow like light catching glass edges */
+  --border: rgba(120, 150, 255, 0.18);
+  --border-strong: rgba(160, 190, 255, 0.28);
+
+  /* Light text — fully opaque for readability */
+  --text-1: #eceeff;
+  --text-2: #8898cc;
+  --text-3: #4a5888;
+  --accent: #6a9fff;
+  --accent-hover: #89b8ff;
+
+  --pin: #ffbe45;
+  --danger: #ff5f5f;
+  --danger-hover: #ff3d3d;
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.30);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.50), 0 2px 6px rgba(0,0,0,.30);
+  --shadow-window: 0 24px 64px rgba(0,0,0,.65), 0 6px 24px rgba(0,0,0,.40);
+
+  --scrollbar: rgba(120, 150, 255, 0.18);
+  --scrollbar-hover: rgba(160, 190, 255, 0.35);
+}
+
+/* ── Glass app shell ── */
+/* Semi-transparent dark base + backdrop blur = frosted glass over the desktop */
+[data-theme="glass"] .app {
+  background: rgba(8, 8, 22, 0.78);
+  backdrop-filter: saturate(1.4) blur(22px);
+  -webkit-backdrop-filter: saturate(1.4) blur(22px);
+  box-shadow: var(--shadow-window);
+}
+
+/* ── Prismatic color overlay — simulates light refracting through the glass ── */
+/* Two gradient layers: a broad prismatic sweep + a concentrated top-edge gloss */
+[data-theme="glass"] .app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    /* Top-edge specular highlight */
+    linear-gradient(
+      to bottom,
+      rgba(180, 200, 255, 0.10) 0%,
+      rgba(120, 160, 255, 0.04) 12%,
+      transparent 28%
+    ),
+    /* Full-face prismatic sweep — the rainbow you see inside colored glass */
+    linear-gradient(
+      138deg,
+      rgba(220, 80,  255, 0.07) 0%,    /* violet */
+      rgba(80,  110, 255, 0.09) 18%,   /* indigo/blue */
+      rgba(40,  200, 255, 0.06) 38%,   /* cyan */
+      rgba(40,  220, 160, 0.04) 55%,   /* teal/green */
+      rgba(255, 200,  60, 0.04) 72%,   /* amber */
+      rgba(255,  80, 130, 0.05) 88%,   /* rose */
+      rgba(180,  60, 220, 0.06) 100%   /* back to violet */
+    );
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+/* ── Border with chromatic fringing ── */
+/* Glass edges split light into red/blue fringes — replicated here with
+   coloured inset shadows layered on the main border ring. */
+[data-theme="glass"] .app::after {
+  box-shadow:
+    inset  1px  0   0   rgba(255,  80, 120, 0.28),   /* rose-red left  */
+    inset -1px  0   0   rgba(80,  130, 255, 0.28),   /* sapphire right */
+    inset  0    1px 0   rgba(200, 220, 255, 0.55),   /* bright top     */
+    inset  0   -1px 0   rgba(100, 80,  200, 0.20),   /* violet bottom  */
+    inset  0    0   0 1px rgba(120, 150, 255, 0.22); /* overall ring   */
+}
+
+/* ── Surface layers — each slightly lighter/different hue for glass depth ── */
+[data-theme="glass"] .view { background: transparent; }
+[data-theme="glass"] .settings-panel { background: transparent; }
+
+[data-theme="glass"] .app-header,
+[data-theme="glass"] .settings-panel__header {
+  background: rgba(6, 4, 18, 0.55);
+  border-bottom-color: rgba(100, 130, 255, 0.18);
+}
+
+[data-theme="glass"] .app-footer {
+  background: rgba(6, 4, 18, 0.50);
+  border-top-color: rgba(100, 130, 255, 0.16);
+}
+
+[data-theme="glass"] .search-bar {
+  background: rgba(8, 6, 22, 0.50);
+  border-bottom-color: rgba(100, 130, 255, 0.16);
+}
+
+/* Clip list items — subtle teal/blue tint on hover for refraction feel */
+[data-theme="glass"] .clip-item:hover {
+  background: rgba(60, 80, 160, 0.30);
+}
+[data-theme="glass"] .clip-item--selected {
+  background: rgba(70, 110, 255, 0.22);
+}
+[data-theme="glass"] .clip-item--activated {
+  background: rgba(90, 140, 255, 0.80) !important;
+}
+
+/* Section badges */
+[data-theme="glass"] .clip-list__section-count {
+  background: rgba(80, 110, 200, 0.25);
+  border-color: rgba(120, 150, 255, 0.30);
+}
+
+/* ── Settings cards — glass panes inside the main pane ── */
+[data-theme="glass"] .settings-card {
+  background: rgba(18, 14, 48, 0.55);
+  border-color: rgba(100, 130, 220, 0.20);
+}
+
+[data-theme="glass"] .settings-card--danger {
+  background: rgba(60, 10, 20, 0.45);
+  border-color: rgba(255, 80, 80, 0.22);
+}
+
+[data-theme="glass"] .settings-input {
+  background: rgba(8, 6, 26, 0.60);
+  border-color: rgba(100, 130, 220, 0.28);
+  color: var(--text-1);
+}
+
+[data-theme="glass"] .settings-theme-option {
+  background: rgba(12, 10, 34, 0.55);
+  border-color: rgba(100, 130, 220, 0.20);
+}
+
+[data-theme="glass"] .settings-theme-option--active {
+  background: rgba(50, 80, 200, 0.35);
+  border-color: rgba(100, 150, 255, 0.65);
+}
+
+/* Dialog gets the same glass treatment */
+[data-theme="glass"] .dialog {
+  background: rgba(10, 8, 30, 0.88);
+  backdrop-filter: saturate(1.4) blur(20px);
+  -webkit-backdrop-filter: saturate(1.4) blur(20px);
+  border-color: rgba(120, 150, 255, 0.30);
+  box-shadow: 0 12px 40px rgba(0,0,0,.60), inset 0 1px 0 rgba(180,210,255,.15);
+}
+
+/* Buttons adapt to dark glass */
+[data-theme="glass"] .btn--secondary {
+  background: rgba(30, 26, 72, 0.65);
+  border-color: rgba(100, 130, 220, 0.28);
+}
+[data-theme="glass"] .btn--secondary:hover:not(:disabled) {
+  background: rgba(45, 40, 100, 0.75);
+}
+
+/* Icon buttons on dark glass */
+[data-theme="glass"] .icon-btn:hover {
+  background: rgba(60, 80, 180, 0.30);
+}
+
+/* Section divider */
+[data-theme="glass"] .clip-list__divider {
+  background: rgba(100, 130, 255, 0.15);
+}

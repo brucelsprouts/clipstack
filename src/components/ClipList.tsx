@@ -2,7 +2,8 @@
  * ClipList — scrollable list of clipboard entries.
  *
  * Pinned clips appear first in a collapsible group (auto-collapsed when >4).
- * All clips support drag-to-reorder within their group.
+ * Drag-to-reorder uses pointer events (not HTML5 drag), which works reliably
+ * in WebView2 transparent windows where the HTML5 drag API is broken.
  */
 import { useCallback, useRef, useEffect, useState } from "react";
 import { Clip } from "@/types";
@@ -33,55 +34,119 @@ export function ClipList({
 }: ClipListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [pinnedCollapsed, setPinnedCollapsed] = useState(false);
-  const [dragId, setDragId] = useState<number | null>(null);
+
+  // Visual drag state for rendering
+  const [dragId,     setDragId]     = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
 
-  const pinned = clips.filter((c) => c.pinned);
+  // Refs for drag logic (avoids stale closures in document listeners)
+  const dragIdRef     = useRef<number | null>(null);
+  const dragOverIdRef = useRef<number | null>(null);
+  const clipsRef      = useRef(clips);
+  useEffect(() => { clipsRef.current = clips; }, [clips]);
+
+  // Suppress hover-selection and scrollIntoView while pointer is held.
+  const isPointerDownRef = useRef(false);
+  useEffect(() => {
+    const onDown = () => { isPointerDownRef.current = true; };
+    const onUp   = () => { isPointerDownRef.current = false; };
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointerup",   onUp,   true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("pointerup",   onUp,   true);
+    };
+  }, []);
+
+  const pinned  = clips.filter((c) =>  c.pinned);
   const regular = clips.filter((c) => !c.pinned);
 
   // Auto-collapse pinned section when many items are pinned.
   useEffect(() => {
-    if (pinned.length > PINNED_PREVIEW_COUNT) {
-      setPinnedCollapsed(true);
-    }
+    if (pinned.length > PINNED_PREVIEW_COUNT) setPinnedCollapsed(true);
   }, [pinned.length]);
 
-  // Scroll selected item into view on keyboard navigation.
+  // Scroll selected item into view — keyboard navigation only.
   useEffect(() => {
-    if (selectedIndex < 0 || !listRef.current) return;
+    if (selectedIndex < 0 || !listRef.current || isPointerDownRef.current) return;
     const items = listRef.current.querySelectorAll<HTMLElement>("[data-clip-item]");
     items[selectedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedIndex]);
 
-  // ── Drag-to-reorder ───────────────────────────────────────────────────────
+  // ── Pointer-based drag-to-reorder ─────────────────────────────────────────
+  // HTML5 drag events are unreliable in WebView2 transparent windows (the source
+  // element disappears from the compositing layer during the drag snapshot).
+  // Pointer events bypass this entirely: pointermove on document tracks position,
+  // elementFromPoint finds the drop target, pointerup commits the reorder.
 
-  const handleDragStart = useCallback((id: number) => setDragId(id), []);
-  const handleDragOver  = useCallback((id: number) => setDragOverId(id), []);
-  const handleDragEnd   = useCallback(() => { setDragId(null); setDragOverId(null); }, []);
+  const startPointerDrag = useCallback(
+    (itemId: number, startY: number) => {
+      let activated = false;
 
-  const handleDrop = useCallback(
-    (dropOnId: number) => {
-      if (!dragId || dragId === dropOnId || !onReorder) {
-        setDragId(null); setDragOverId(null); return;
-      }
-      const dragClip = clips.find((c) => c.id === dragId);
-      const dropClip = clips.find((c) => c.id === dropOnId);
-      // Only allow reorder within the same group (pinned↔pinned, regular↔regular).
-      if (!dragClip || !dropClip || dragClip.pinned !== dropClip.pinned) {
-        setDragId(null); setDragOverId(null); return;
-      }
-      const group = dragClip.pinned ? pinned : regular;
-      const from = group.findIndex((c) => c.id === dragId);
-      const to   = group.findIndex((c) => c.id === dropOnId);
-      if (from === to) { setDragId(null); setDragOverId(null); return; }
-      const reordered = [...group];
-      const [moved] = reordered.splice(from, 1);
-      reordered.splice(to, 0, moved);
-      onReorder(reordered.map((c) => c.id));
-      setDragId(null); setDragOverId(null);
+      const onMove = (e: PointerEvent) => {
+        // Require 6px movement before activating drag to distinguish from clicks.
+        if (!activated) {
+          if (Math.abs(e.clientY - startY) < 6) return;
+          activated = true;
+          dragIdRef.current = itemId;
+          setDragId(itemId);
+          document.body.style.userSelect = "none";
+          document.body.style.cursor     = "grabbing";
+        }
+
+        // Find which clip the pointer is currently over.
+        const el     = document.elementFromPoint(e.clientX, e.clientY);
+        const itemEl = el?.closest("[data-clip-item]") as HTMLElement | null;
+        if (itemEl) {
+          const overId = Number(itemEl.dataset.clipId);
+          if (!isNaN(overId) && overId !== itemId && overId !== dragOverIdRef.current) {
+            dragOverIdRef.current = overId;
+            setDragOverId(overId);
+          }
+        }
+      };
+
+      const onUp = () => {
+        const dId   = dragIdRef.current;
+        const dOver = dragOverIdRef.current;
+
+        if (activated && dId !== null && dOver !== null && dId !== dOver && onReorder) {
+          const allClips = clipsRef.current;
+          const dragClip = allClips.find((c) => c.id === dId);
+          const dropClip = allClips.find((c) => c.id === dOver);
+          if (dragClip && dropClip && dragClip.pinned === dropClip.pinned) {
+            const group = dragClip.pinned
+              ? allClips.filter((c) => c.pinned)
+              : allClips.filter((c) => !c.pinned);
+            const from = group.findIndex((c) => c.id === dId);
+            const to   = group.findIndex((c) => c.id === dOver);
+            if (from >= 0 && to >= 0 && from !== to) {
+              const reordered = [...group];
+              const [moved]   = reordered.splice(from, 1);
+              reordered.splice(to, 0, moved);
+              onReorder(reordered.map((c) => c.id));
+            }
+          }
+        }
+
+        // Reset
+        dragIdRef.current     = null;
+        dragOverIdRef.current = null;
+        setDragId(null);
+        setDragOverId(null);
+        document.body.style.userSelect = "";
+        document.body.style.cursor     = "";
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup",   onUp);
+      };
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup",   onUp);
     },
-    [dragId, clips, pinned, regular, onReorder]
+    [onReorder]
   );
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (clips.length === 0) {
     return (
@@ -100,21 +165,38 @@ export function ClipList({
   let absIndex = 0;
 
   return (
-    <div className="clip-list" ref={listRef} role="listbox" aria-label="Clipboard history"
+    <div
+      className="clip-list"
+      ref={listRef}
+      role="listbox"
+      aria-label="Clipboard history"
       onMouseLeave={() => onSelectIndex(-1)}
     >
       {/* ── Pinned section ── */}
       {pinned.length > 0 && (
         <>
           <div className="clip-list__section-label" role="presentation">
-            <span>Pinned</span>
+            <span className="clip-list__section-title">
+              Pinned
+              <span className="clip-list__section-count">{pinned.length}</span>
+            </span>
             {pinned.length > PINNED_PREVIEW_COUNT && (
               <button
                 className="clip-list__collapse-btn"
                 onClick={() => setPinnedCollapsed((v) => !v)}
                 aria-label={pinnedCollapsed ? "Show all pinned" : "Collapse pinned"}
+                title={pinnedCollapsed ? `Show ${pinned.length - PINNED_PREVIEW_COUNT} more` : "Collapse"}
               >
-                {pinnedCollapsed ? `Show ${pinned.length - PINNED_PREVIEW_COUNT} more` : "Collapse"}
+                {pinnedCollapsed && (
+                  <span className="clip-list__more-pill">+{pinned.length - PINNED_PREVIEW_COUNT}</span>
+                )}
+                <svg
+                  className={`clip-list__chevron${pinnedCollapsed ? "" : " clip-list__chevron--open"}`}
+                  width="11" height="11" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
             )}
           </div>
@@ -132,11 +214,8 @@ export function ClipList({
                 onCopy={onCopy}
                 onTogglePin={onTogglePin}
                 onDelete={onDelete}
-                onMouseEnter={() => onSelectIndex(idx)}
-                onDragStart={() => handleDragStart(clip.id)}
-                onDragOver={() => handleDragOver(clip.id)}
-                onDrop={() => handleDrop(clip.id)}
-                onDragEnd={handleDragEnd}
+                onMouseEnter={() => { if (!isPointerDownRef.current) onSelectIndex(idx); }}
+                onDragHandlePointerDown={(startY) => startPointerDrag(clip.id, startY)}
               />
             );
           })}
@@ -166,11 +245,8 @@ export function ClipList({
                 onCopy={onCopy}
                 onTogglePin={onTogglePin}
                 onDelete={onDelete}
-                onMouseEnter={() => onSelectIndex(idx)}
-                onDragStart={() => handleDragStart(clip.id)}
-                onDragOver={() => handleDragOver(clip.id)}
-                onDrop={() => handleDrop(clip.id)}
-                onDragEnd={handleDragEnd}
+                onMouseEnter={() => { if (!isPointerDownRef.current) onSelectIndex(idx); }}
+                onDragHandlePointerDown={(startY) => startPointerDrag(clip.id, startY)}
               />
             );
           })}

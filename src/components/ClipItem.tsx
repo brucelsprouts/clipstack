@@ -1,13 +1,11 @@
 /**
  * ClipItem — a single row in the clipboard history list.
  *
- * Displays:
- *   - Pin indicator (★ / ☆)
- *   - Content preview (text truncated, image thumbnail)
- *   - Relative timestamp
- *   - Action buttons that appear on hover
+ * Drag-to-reorder uses pointer events (not HTML5 drag API), which works
+ * reliably in WebView2 transparent windows. The parent ClipList owns all
+ * drag logic; this component only signals when the drag handle is pressed.
  */
-import React, { memo, useCallback } from "react";
+import React, { memo, useCallback, useRef, useState, useEffect } from "react";
 import { Clip } from "@/types";
 import { formatRelativeTime } from "@/lib/formatTime";
 
@@ -21,10 +19,8 @@ interface ClipItemProps {
   onTogglePin: (id: number) => void;
   onDelete: (id: number) => void;
   onMouseEnter: () => void;
-  onDragStart?: () => void;
-  onDragOver?: () => void;
-  onDrop?: () => void;
-  onDragEnd?: () => void;
+  /** Called when the drag handle receives pointerdown; passes the clientY origin. */
+  onDragHandlePointerDown?: (startY: number) => void;
 }
 
 export const ClipItem = memo(function ClipItem({
@@ -37,11 +33,17 @@ export const ClipItem = memo(function ClipItem({
   onTogglePin,
   onDelete,
   onMouseEnter,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
+  onDragHandlePointerDown,
 }: ClipItemProps) {
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    };
+  }, []);
+
   const handleCopy = useCallback(() => onCopy(clip.id), [clip.id, onCopy]);
   const handlePin = useCallback(
     (e: React.MouseEvent) => {
@@ -53,9 +55,16 @@ export const ClipItem = memo(function ClipItem({
   const handleDelete = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onDelete(clip.id);
+      if (pendingDelete) {
+        if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+        setPendingDelete(false);
+        onDelete(clip.id);
+      } else {
+        setPendingDelete(true);
+        deleteTimerRef.current = setTimeout(() => setPendingDelete(false), 1500);
+      }
     },
-    [clip.id, onDelete]
+    [clip.id, onDelete, pendingDelete]
   );
 
   const cls = [
@@ -71,30 +80,27 @@ export const ClipItem = memo(function ClipItem({
     <li
       className={cls}
       data-clip-item
-      draggable
+      data-clip-id={clip.id}
       onClick={handleCopy}
       onMouseEnter={onMouseEnter}
-      onDragStart={(e) => {
-        // WebView2 transparent-window bug: the browser briefly removes the
-        // source element from its compositing layer to snapshot the drag ghost,
-        // making it invisible. Providing a pre-built offscreen clone as the
-        // drag image decouples the capture from the live element entirely.
-        const el = e.currentTarget;
-        const ghost = el.cloneNode(true) as HTMLElement;
-        ghost.style.cssText = `width:${el.offsetWidth}px;position:fixed;top:-9999px;left:-9999px;pointer-events:none;`;
-        document.body.appendChild(ghost);
-        e.dataTransfer.setDragImage(ghost, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        setTimeout(() => { if (ghost.parentNode) ghost.parentNode.removeChild(ghost); }, 0);
-        onDragStart?.();
-      }}
-      onDragOver={(e) => { e.preventDefault(); onDragOver?.(); }}
-      onDrop={(e) => { e.preventDefault(); onDrop?.(); }}
-      onDragEnd={onDragEnd}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && handleCopy()}
       aria-label={`Copy: ${clip.preview}`}
     >
+      {/* Drag handle — pointer events only, click is absorbed here */}
+      <div
+        className="clip-item__drag-handle"
+        aria-hidden="true"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onDragHandlePointerDown?.(e.clientY);
+        }}
+      >
+        <DragHandleIcon />
+      </div>
+
       {/* Left: content preview */}
       <div className="clip-item__body">
         {clip.kind === "image" ? (
@@ -108,7 +114,6 @@ export const ClipItem = memo(function ClipItem({
 
       {/* Right: meta + actions */}
       <div className="clip-item__meta">
-
         <span className="clip-item__time">{formatRelativeTime(clip.createdAt)}</span>
         <div className="clip-item__actions">
           <button
@@ -120,12 +125,12 @@ export const ClipItem = memo(function ClipItem({
             <PinIcon pinned={clip.pinned} />
           </button>
           <button
-            className="clip-action clip-action--delete"
+            className={`clip-action clip-action--delete${pendingDelete ? " clip-action--delete-pending" : ""}`}
             onClick={handleDelete}
-            aria-label="Delete"
-            title="Delete"
+            aria-label={pendingDelete ? "Click again to confirm delete" : "Delete"}
+            title={pendingDelete ? "Click again to delete" : "Delete"}
           >
-            <TrashIcon />
+            {pendingDelete ? <ConfirmDeleteIcon /> : <TrashIcon />}
           </button>
         </div>
       </div>
@@ -139,13 +144,11 @@ function TextPreview({ content }: { content: string }) {
   return <span className="clip-item__text">{content}</span>;
 }
 
-
 function HtmlPreview({ preview }: { preview: string }) {
   return <span className="clip-item__text">{preview}</span>;
 }
 
 function ImagePreview({ content, preview }: { content: string; preview: string }) {
-  // Detect format from base64 magic bytes: PNG starts with iVBOR, BMP with Qk
   const mime = content.startsWith("iVBOR") ? "image/png"
              : content.startsWith("Qk")    ? "image/bmp"
              : "image/png";
@@ -181,6 +184,27 @@ function PinIcon({ pinned }: { pinned: boolean }) {
   ) : (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M16 12V4a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v8l-2 2v1h6v7l1 1 1-1v-7h6v-1l-2-2z" />
+    </svg>
+  );
+}
+
+function DragHandleIcon() {
+  return (
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+      <circle cx="3" cy="2.5" r="1.2" />
+      <circle cx="7" cy="2.5" r="1.2" />
+      <circle cx="3" cy="7"   r="1.2" />
+      <circle cx="7" cy="7"   r="1.2" />
+      <circle cx="3" cy="11.5" r="1.2" />
+      <circle cx="7" cy="11.5" r="1.2" />
+    </svg>
+  );
+}
+
+function ConfirmDeleteIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
