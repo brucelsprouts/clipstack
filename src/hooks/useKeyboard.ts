@@ -9,11 +9,15 @@
 import { useEffect } from "react";
 import { hideWindow } from "@/lib/api";
 
+import { MutableRefObject } from "react";
+
 interface UseKeyboardOptions {
   itemCount: number;
   selectedIndex: number;
   onSelectIndex: (index: number) => void;
   onConfirm: (index: number) => void;
+  /** Set to true before each keyboard-driven selection so ClipList can scroll. */
+  keyboardNavRef: MutableRefObject<boolean>;
 }
 
 export function useKeyboard({
@@ -21,6 +25,7 @@ export function useKeyboard({
   selectedIndex,
   onSelectIndex,
   onConfirm,
+  keyboardNavRef,
 }: UseKeyboardOptions): void {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -32,11 +37,13 @@ export function useKeyboard({
 
         case "ArrowDown":
           e.preventDefault();
+          keyboardNavRef.current = true;
           onSelectIndex(Math.min(selectedIndex + 1, itemCount - 1));
           break;
 
         case "ArrowUp":
           e.preventDefault();
+          keyboardNavRef.current = true;
           onSelectIndex(Math.max(selectedIndex - 1, 0));
           break;
 
@@ -51,5 +58,5 @@ export function useKeyboard({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [itemCount, selectedIndex, onSelectIndex, onConfirm]);
+  }, [itemCount, selectedIndex, onSelectIndex, onConfirm, keyboardNavRef]);
 }

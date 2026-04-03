@@ -409,10 +409,16 @@ body {
   transition: none;
 }
 
-/* Drag-and-drop visual cue */
-.clip-item--drag-over {
-  border-top: 2px solid var(--accent);
-  margin-top: -1px;
+/* Drag-and-drop visual cue — repurpose ::after as a straight drop-line.
+   Left/right 0 + border-radius 0 gives sharp, full-width ends. */
+.clip-item--drag-over::after {
+  top: -1px;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0;
 }
 
 /* Pin accent stripe */
@@ -599,6 +605,22 @@ body {
   border: 1px solid var(--border);
 }
 
+/* ── Settings watermark ── */
+.settings-watermark {
+  margin-top: auto;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 10px 0 4px;
+  color: var(--text-3); font-size: 10.5px;
+  opacity: 0.7;
+}
+.settings-watermark svg { flex-shrink: 0; }
+.settings-watermark__sep { opacity: 0.5; }
+.settings-watermark__link {
+  color: var(--text-3); text-decoration: none;
+  transition: color var(--dur-fast);
+}
+.settings-watermark__link:hover { color: var(--accent); }
+
 .settings-input {
   width: 100%; padding: 6px 10px;
   font-family: var(--font); font-size: 12.5px; color: var(--text-1);
@@ -614,6 +636,32 @@ body {
 .settings-input:disabled { opacity: 0.45; cursor: not-allowed; }
 .settings-input--number { width: 80px; }
 
+/* ── Shortcut recorder ── */
+.shortcut-recorder {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; width: 100%;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); cursor: pointer; outline: none;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  user-select: none; min-height: 32px;
+}
+.shortcut-recorder:hover { border-color: var(--accent); }
+.shortcut-recorder--recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,140,255,.15);
+  cursor: text;
+}
+.shortcut-recorder__keys {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-1);
+  letter-spacing: 0.02em;
+}
+.shortcut-recorder__hint {
+  font-size: 12px; color: var(--accent); font-style: italic;
+}
+.shortcut-recorder__badge {
+  font-size: 10px; color: var(--text-3); white-space: nowrap;
+}
+
 .settings-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .settings-checkbox {
@@ -622,9 +670,9 @@ body {
 }
 .settings-checkbox input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; }
 
-/* ── Theme grid — single row of 4 ── */
+/* ── Theme grid — single row of 3 ── */
 .settings-theme-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 4px;
 }
 
@@ -733,183 +781,4 @@ body {
 .dialog__message { font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-bottom: 18px; }
 .dialog__actions { display: flex; gap: 8px; justify-content: flex-end; }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   GLASS THEME — frosted glass over the desktop.
-   Semi-transparent dark base + backdrop-filter blur creates the see-through
-   frosted effect. Chromatic aberration border ring simulates light refraction.
-   ═══════════════════════════════════════════════════════════════════════════════ */
 
-[data-theme="glass"] {
-  /* Deep tinted base — dark enough for text, translucent enough to see through */
-  --bg: rgba(8, 8, 22, 0.70);
-  --surface: rgba(14, 12, 36, 0.55);
-  --surface-raised: rgba(22, 18, 52, 0.70);
-  --surface-hover: rgba(40, 50, 110, 0.40);
-  --surface-active: rgba(55, 65, 140, 0.50);
-  --surface-selected: rgba(70, 110, 255, 0.28);
-
-  /* Borders glow like light catching glass edges */
-  --border: rgba(120, 150, 255, 0.18);
-  --border-strong: rgba(160, 190, 255, 0.28);
-
-  /* Light text — fully opaque for readability */
-  --text-1: #eceeff;
-  --text-2: #8898cc;
-  --text-3: #4a5888;
-  --accent: #6a9fff;
-  --accent-hover: #89b8ff;
-
-  --pin: #ffbe45;
-  --danger: #ff5f5f;
-  --danger-hover: #ff3d3d;
-
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.30);
-  --shadow-md: 0 4px 20px rgba(0,0,0,.50), 0 2px 6px rgba(0,0,0,.30);
-  --shadow-window: 0 24px 64px rgba(0,0,0,.65), 0 6px 24px rgba(0,0,0,.40);
-
-  --scrollbar: rgba(120, 150, 255, 0.18);
-  --scrollbar-hover: rgba(160, 190, 255, 0.35);
-}
-
-/* ── Glass app shell ── */
-/* Semi-transparent dark base + backdrop blur = frosted glass over the desktop */
-[data-theme="glass"] .app {
-  background: rgba(8, 8, 22, 0.78);
-  backdrop-filter: saturate(1.4) blur(22px);
-  -webkit-backdrop-filter: saturate(1.4) blur(22px);
-  box-shadow: var(--shadow-window);
-}
-
-/* ── Prismatic color overlay — simulates light refracting through the glass ── */
-/* Two gradient layers: a broad prismatic sweep + a concentrated top-edge gloss */
-[data-theme="glass"] .app::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    /* Top-edge specular highlight */
-    linear-gradient(
-      to bottom,
-      rgba(180, 200, 255, 0.10) 0%,
-      rgba(120, 160, 255, 0.04) 12%,
-      transparent 28%
-    ),
-    /* Full-face prismatic sweep — the rainbow you see inside colored glass */
-    linear-gradient(
-      138deg,
-      rgba(220, 80,  255, 0.07) 0%,    /* violet */
-      rgba(80,  110, 255, 0.09) 18%,   /* indigo/blue */
-      rgba(40,  200, 255, 0.06) 38%,   /* cyan */
-      rgba(40,  220, 160, 0.04) 55%,   /* teal/green */
-      rgba(255, 200,  60, 0.04) 72%,   /* amber */
-      rgba(255,  80, 130, 0.05) 88%,   /* rose */
-      rgba(180,  60, 220, 0.06) 100%   /* back to violet */
-    );
-  pointer-events: none;
-  z-index: 0;
-  border-radius: inherit;
-}
-
-/* ── Border with chromatic fringing ── */
-/* Glass edges split light into red/blue fringes — replicated here with
-   coloured inset shadows layered on the main border ring. */
-[data-theme="glass"] .app::after {
-  box-shadow:
-    inset  1px  0   0   rgba(255,  80, 120, 0.28),   /* rose-red left  */
-    inset -1px  0   0   rgba(80,  130, 255, 0.28),   /* sapphire right */
-    inset  0    1px 0   rgba(200, 220, 255, 0.55),   /* bright top     */
-    inset  0   -1px 0   rgba(100, 80,  200, 0.20),   /* violet bottom  */
-    inset  0    0   0 1px rgba(120, 150, 255, 0.22); /* overall ring   */
-}
-
-/* ── Surface layers — each slightly lighter/different hue for glass depth ── */
-[data-theme="glass"] .view { background: transparent; }
-[data-theme="glass"] .settings-panel { background: transparent; }
-
-[data-theme="glass"] .app-header,
-[data-theme="glass"] .settings-panel__header {
-  background: rgba(6, 4, 18, 0.55);
-  border-bottom-color: rgba(100, 130, 255, 0.18);
-}
-
-[data-theme="glass"] .app-footer {
-  background: rgba(6, 4, 18, 0.50);
-  border-top-color: rgba(100, 130, 255, 0.16);
-}
-
-[data-theme="glass"] .search-bar {
-  background: rgba(8, 6, 22, 0.50);
-  border-bottom-color: rgba(100, 130, 255, 0.16);
-}
-
-/* Clip list items — subtle teal/blue tint on hover for refraction feel */
-[data-theme="glass"] .clip-item:hover {
-  background: rgba(60, 80, 160, 0.30);
-}
-[data-theme="glass"] .clip-item--selected {
-  background: rgba(70, 110, 255, 0.22);
-}
-[data-theme="glass"] .clip-item--activated {
-  background: rgba(90, 140, 255, 0.80) !important;
-}
-
-/* Section badges */
-[data-theme="glass"] .clip-list__section-count {
-  background: rgba(80, 110, 200, 0.25);
-  border-color: rgba(120, 150, 255, 0.30);
-}
-
-/* ── Settings cards — glass panes inside the main pane ── */
-[data-theme="glass"] .settings-card {
-  background: rgba(18, 14, 48, 0.55);
-  border-color: rgba(100, 130, 220, 0.20);
-}
-
-[data-theme="glass"] .settings-card--danger {
-  background: rgba(60, 10, 20, 0.45);
-  border-color: rgba(255, 80, 80, 0.22);
-}
-
-[data-theme="glass"] .settings-input {
-  background: rgba(8, 6, 26, 0.60);
-  border-color: rgba(100, 130, 220, 0.28);
-  color: var(--text-1);
-}
-
-[data-theme="glass"] .settings-theme-option {
-  background: rgba(12, 10, 34, 0.55);
-  border-color: rgba(100, 130, 220, 0.20);
-}
-
-[data-theme="glass"] .settings-theme-option--active {
-  background: rgba(50, 80, 200, 0.35);
-  border-color: rgba(100, 150, 255, 0.65);
-}
-
-/* Dialog gets the same glass treatment */
-[data-theme="glass"] .dialog {
-  background: rgba(10, 8, 30, 0.88);
-  backdrop-filter: saturate(1.4) blur(20px);
-  -webkit-backdrop-filter: saturate(1.4) blur(20px);
-  border-color: rgba(120, 150, 255, 0.30);
-  box-shadow: 0 12px 40px rgba(0,0,0,.60), inset 0 1px 0 rgba(180,210,255,.15);
-}
-
-/* Buttons adapt to dark glass */
-[data-theme="glass"] .btn--secondary {
-  background: rgba(30, 26, 72, 0.65);
-  border-color: rgba(100, 130, 220, 0.28);
-}
-[data-theme="glass"] .btn--secondary:hover:not(:disabled) {
-  background: rgba(45, 40, 100, 0.75);
-}
-
-/* Icon buttons on dark glass */
-[data-theme="glass"] .icon-btn:hover {
-  background: rgba(60, 80, 180, 0.30);
-}
-
-/* Section divider */
-[data-theme="glass"] .clip-list__divider {
-  background: rgba(100, 130, 255, 0.15);
-}

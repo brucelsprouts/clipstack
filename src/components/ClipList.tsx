@@ -5,7 +5,7 @@
  * Drag-to-reorder uses pointer events (not HTML5 drag), which works reliably
  * in WebView2 transparent windows where the HTML5 drag API is broken.
  */
-import { useCallback, useRef, useEffect, useState } from "react";
+import { useCallback, useRef, useEffect, useState, MutableRefObject } from "react";
 import { Clip } from "@/types";
 import { ClipItem } from "./ClipItem";
 
@@ -20,6 +20,8 @@ interface ClipListProps {
   onDelete: (id: number) => void;
   activatedId?: number | null;
   onReorder?: (orderedIds: number[]) => void;
+  /** Ref set to true by useKeyboard before arrow-key nav; cleared after scroll. */
+  keyboardNavRef?: MutableRefObject<boolean>;
 }
 
 export function ClipList({
@@ -31,6 +33,7 @@ export function ClipList({
   onDelete,
   activatedId,
   onReorder,
+  keyboardNavRef,
 }: ClipListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [pinnedCollapsed, setPinnedCollapsed] = useState(false);
@@ -66,12 +69,13 @@ export function ClipList({
     if (pinned.length > PINNED_PREVIEW_COUNT) setPinnedCollapsed(true);
   }, [pinned.length]);
 
-  // Scroll selected item into view — keyboard navigation only.
+  // Scroll selected item into view — only when triggered by keyboard arrow keys.
   useEffect(() => {
-    if (selectedIndex < 0 || !listRef.current || isPointerDownRef.current) return;
+    if (selectedIndex < 0 || !listRef.current || !keyboardNavRef?.current) return;
+    keyboardNavRef.current = false;
     const items = listRef.current.querySelectorAll<HTMLElement>("[data-clip-item]");
     items[selectedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [selectedIndex]);
+  }, [selectedIndex, keyboardNavRef]);
 
   // ── Pointer-based drag-to-reorder ─────────────────────────────────────────
   // HTML5 drag events are unreliable in WebView2 transparent windows (the source
@@ -127,6 +131,17 @@ export function ClipList({
               onReorder(reordered.map((c) => c.id));
             }
           }
+        }
+
+        // After a real drag, absorb the click the browser fires on pointerup
+        // so the item under the pointer doesn't trigger copy+paste.
+        if (activated) {
+          const absorbClick = (e: MouseEvent) => {
+            e.stopPropagation();
+            e.preventDefault();
+          };
+          document.addEventListener("click", absorbClick, true);
+          setTimeout(() => document.removeEventListener("click", absorbClick, true), 0);
         }
 
         // Reset

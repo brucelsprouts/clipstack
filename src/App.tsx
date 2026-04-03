@@ -36,6 +36,9 @@ export default function App() {
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pasteTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDraggingRef   = useRef(false);
+  // Set to true only when Arrow Up/Down triggered the selection change so that
+  // ClipList knows to scroll the selected item into view.
+  const keyboardNavRef  = useRef(false);
 
   const {
     clips, loading, error: clipError,
@@ -136,6 +139,7 @@ export default function App() {
     selectedIndex,
     onSelectIndex: setSelectedIndex,
     onConfirm: handleConfirmSelection,
+    keyboardNavRef,
   });
 
   const inSettings = view === "settings";
@@ -197,6 +201,7 @@ export default function App() {
                 onDelete={handleDelete}
                 activatedId={activatedId}
                 onReorder={handleReorder}
+                keyboardNavRef={keyboardNavRef}
               />
             )}
           </main>

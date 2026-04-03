@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   maxHistory: 500,
   launchAtStartup: true,
   excludedApps: [],
-  theme: "glass",
+  theme: "system",
 };
 
 interface UseSettingsResult {

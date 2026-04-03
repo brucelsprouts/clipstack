@@ -26,7 +26,7 @@ export interface Clip {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 /** Theme preference: follow system, force dark, or force light. */
-export type ThemePreference = "glass" | "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark";
 
 /** Settings object passed between frontend and backend. */
 export interface AppSettings {

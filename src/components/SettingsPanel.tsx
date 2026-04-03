@@ -4,7 +4,7 @@
  * Changes auto-save with a 600ms debounce — no save button required.
  * Theme changes apply immediately for live preview.
  */
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { AppSettings, ThemePreference } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { openHistoryFolder } from "@/lib/api";
@@ -16,10 +16,99 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
+// ── ShortcutRecorder ──────────────────────────────────────────────────────────
+
+interface ShortcutRecorderProps {
+  value: string;
+  onChange: (shortcut: string) => void;
+}
+
+/** Converts a KeyboardEvent into a Tauri-compatible shortcut string. */
+function keyEventToShortcut(e: React.KeyboardEvent): string | null {
+  const ignored = new Set(["Control", "Shift", "Alt", "Meta", "CapsLock", "Tab"]);
+  if (ignored.has(e.key)) return null;
+
+  const parts: string[] = [];
+  if (e.ctrlKey  || e.metaKey) parts.push("CommandOrControl");
+  if (e.altKey)   parts.push("Alt");
+  if (e.shiftKey) parts.push("Shift");
+
+  // Normalize the key name to Tauri's expected format
+  let key = e.key;
+  if (key.length === 1) key = key.toUpperCase();
+  else if (key === "ArrowUp")    key = "Up";
+  else if (key === "ArrowDown")  key = "Down";
+  else if (key === "ArrowLeft")  key = "Left";
+  else if (key === "ArrowRight") key = "Right";
+  else if (key === " ")          key = "Space";
+
+  // Require at least one modifier
+  if (parts.length === 0) return null;
+
+  parts.push(key);
+  return parts.join("+");
+}
+
+function ShortcutRecorder({ value, onChange }: ShortcutRecorderProps) {
+  const [recording, setRecording] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shortcut = keyEventToShortcut(e);
+    if (shortcut) {
+      setPreview(shortcut);
+    }
+  }, []);
+
+  const handleKeyUp = useCallback((e: React.KeyboardEvent) => {
+    e.preventDefault();
+    if (preview) {
+      onChange(preview);
+      setPreview(null);
+      setRecording(false);
+    }
+  }, [preview, onChange]);
+
+  const handleBlur = useCallback(() => {
+    setRecording(false);
+    setPreview(null);
+  }, []);
+
+  // Format shortcut string for display: replace "CommandOrControl" with "Ctrl"
+  const display = (s: string) => s.replace("CommandOrControl", "Ctrl");
+
+  return (
+    <div
+      className={`shortcut-recorder${recording ? " shortcut-recorder--recording" : ""}`}
+      tabIndex={0}
+      onFocus={() => setRecording(true)}
+      onBlur={handleBlur}
+      onKeyDown={recording ? handleKeyDown : undefined}
+      onKeyUp={recording ? handleKeyUp : undefined}
+      role="button"
+      aria-label={recording ? "Press keys for shortcut" : `Current shortcut: ${value}`}
+    >
+      {recording ? (
+        <span className="shortcut-recorder__hint">
+          {preview ? display(preview) : "Press keys…"}
+        </span>
+      ) : (
+        <span className="shortcut-recorder__keys">{display(value) || "Click to record"}</span>
+      )}
+      {!recording && (
+        <span className="shortcut-recorder__badge">click to change</span>
+      )}
+    </div>
+  );
+}
+
 function applyTheme(theme: string) {
   const root = document.documentElement;
   root.classList.add("theme-transitioning");
-  if (theme === "system") {
+  // "glass" was removed; fall back to system if an old saved value slips through
+  if (theme === "system" || theme === "glass") {
     root.removeAttribute("data-theme");
   } else {
     root.setAttribute("data-theme", theme);
@@ -112,16 +201,10 @@ export function SettingsPanel({ settings, onSave, onClearAll, onClose }: Setting
               </svg>
               <span>Global Shortcut</span>
             </div>
-            <input
-              className="settings-input"
+            <ShortcutRecorder
               value={draft.shortcut}
-              onChange={(e) => set("shortcut", e.target.value)}
-              placeholder="e.g. Alt+Shift+V"
-              spellCheck={false}
+              onChange={(v) => set("shortcut", v)}
             />
-            <p className="settings-hint">
-              Modifiers: <code>CommandOrControl</code> <code>Alt</code> <code>Shift</code>
-            </p>
           </div>
 
           {/* ── History ── */}
@@ -182,10 +265,9 @@ export function SettingsPanel({ settings, onSave, onClearAll, onClose }: Setting
             </div>
             <div className="settings-theme-grid" role="group" aria-label="Theme">
               {([
-                { value: "glass",  label: "Glass",  desc: "Liquid glass" },
-                { value: "system", label: "Auto",   desc: "Follow system" },
-                { value: "light",  label: "Light",  desc: "Always light" },
-                { value: "dark",   label: "Dark",   desc: "Always dark" },
+                { value: "system", label: "Auto",  desc: "Follow system" },
+                { value: "light",  label: "Light", desc: "Always light" },
+                { value: "dark",   label: "Dark",  desc: "Always dark" },
               ] as { value: ThemePreference; label: string; desc: string }[]).map(({ value, label, desc }) => (
                 <label
                   key={value}
@@ -236,6 +318,27 @@ export function SettingsPanel({ settings, onSave, onClearAll, onClose }: Setting
             <button className="btn btn--danger btn--sm" onClick={() => setShowClearConfirm(true)}>
               Clear All History
             </button>
+          </div>
+
+          {/* ── Watermark ── */}
+          <div className="settings-watermark">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="9" y="2" width="6" height="4" rx="1" />
+              <path d="M5 4h-1a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1" />
+            </svg>
+            <span>ClipStack</span>
+            <span className="settings-watermark__sep">·</span>
+            <span>v0.1.0</span>
+            <span className="settings-watermark__sep">·</span>
+            <a
+              className="settings-watermark__link"
+              href="https://github.com/brucewaynefp/clipstack2"
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => { e.preventDefault(); }}
+            >
+              GitHub
+            </a>
           </div>
 
         </div>

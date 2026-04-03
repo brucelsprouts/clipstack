@@ -438,18 +438,24 @@ pub fn open_history_folder(app: AppHandle, state: State<'_, AppState>) -> CmdRes
 
     std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
 
-    // Export clips to a human-readable text file.
+    // Export clips to a human-readable JSON file.
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         if let Ok(clips) = db.get_clips(None, u32::MAX) {
-            let header = format!(
-                "=== ClipStack History Export ({}) ===\n\n",
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
-            );
-            let entries: Vec<String> = clips
+            #[derive(serde::Serialize)]
+            struct ClipEntry {
+                id: i64,
+                kind: &'static str,
+                content: String,
+                created_at: String,
+                pinned: bool,
+                preview: String,
+            }
+
+            let entries: Vec<ClipEntry> = clips
                 .iter()
                 .map(|c| {
-                    let ts = chrono::DateTime::from_timestamp_millis(c.created_at)
+                    let created_at = chrono::DateTime::from_timestamp_millis(c.created_at)
                         .map(|dt| {
                             dt.with_timezone(&chrono::Local)
                                 .format("%Y-%m-%d %H:%M:%S")
@@ -457,15 +463,28 @@ pub fn open_history_folder(app: AppHandle, state: State<'_, AppState>) -> CmdRes
                         })
                         .unwrap_or_else(|| "unknown".into());
                     let kind = match c.kind {
-                        crate::db::ClipKind::Text => "TEXT",
-                        crate::db::ClipKind::Image => "IMAGE",
-                        crate::db::ClipKind::Html => "HTML",
+                        crate::db::ClipKind::Text => "text",
+                        crate::db::ClipKind::Image => "image",
+                        crate::db::ClipKind::Html => "html",
                     };
-                    let pin = if c.pinned { " [PINNED]" } else { "" };
-                    format!("[{}] [{}]{}\n{}\n", ts, kind, pin, c.content)
+                    ClipEntry {
+                        id: c.id,
+                        kind,
+                        content: if c.kind == crate::db::ClipKind::Image {
+                            format!("[base64 image, {} bytes]", c.content.len())
+                        } else {
+                            c.content.clone()
+                        },
+                        created_at,
+                        pinned: c.pinned,
+                        preview: c.preview.clone(),
+                    }
                 })
                 .collect();
-            let _ = std::fs::write(path.join("history.txt"), header + &entries.join("\n"));
+
+            if let Ok(json) = serde_json::to_string_pretty(&entries) {
+                let _ = std::fs::write(path.join("history.json"), json);
+            }
         }
     }
 
