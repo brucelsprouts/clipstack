@@ -30,6 +30,8 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.label }})
+    permissions:
+      contents: write
 
     steps:
       # ── Checkout ──────────────────────────────────────────────────────────────
