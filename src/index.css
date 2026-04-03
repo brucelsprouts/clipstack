@@ -616,7 +616,9 @@ body {
 .settings-watermark svg { flex-shrink: 0; }
 .settings-watermark__sep { opacity: 0.5; }
 .settings-watermark__link {
-  color: var(--text-3); text-decoration: none;
+  border: none; background: none; padding: 0;
+  color: var(--text-3); font-family: var(--font); font-size: inherit;
+  cursor: pointer; text-decoration: none;
   transition: color var(--dur-fast);
 }
 .settings-watermark__link:hover { color: var(--accent); }

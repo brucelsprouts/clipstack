@@ -7,7 +7,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { AppSettings, ThemePreference } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { openHistoryFolder } from "@/lib/api";
+import { openHistoryFolder, openUrl } from "@/lib/api";
 
 interface SettingsPanelProps {
   settings: AppSettings;
@@ -322,23 +322,16 @@ export function SettingsPanel({ settings, onSave, onClearAll, onClose }: Setting
 
           {/* ── Watermark ── */}
           <div className="settings-watermark">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="9" y="2" width="6" height="4" rx="1" />
-              <path d="M5 4h-1a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1" />
-            </svg>
             <span>ClipStack</span>
             <span className="settings-watermark__sep">·</span>
             <span>v0.1.0</span>
             <span className="settings-watermark__sep">·</span>
-            <a
+            <button
               className="settings-watermark__link"
-              href="https://github.com/brucewaynefp/clipstack2"
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => { e.preventDefault(); }}
+              onClick={() => openUrl("https://github.com/brucelsprouts/clipstack").catch(console.error)}
             >
-              GitHub
-            </a>
+              GitHub ↗
+            </button>
           </div>
 
         </div>

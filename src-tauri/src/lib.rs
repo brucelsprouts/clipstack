@@ -49,6 +49,7 @@ pub fn run() {
             commands::open_history_folder,
             commands::paste_and_hide,
             commands::reorder_clips,
+            commands::open_url,
         ])
         // ── Setup ─────────────────────────────────────────────────────────────
         .setup(|app| {

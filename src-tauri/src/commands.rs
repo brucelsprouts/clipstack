@@ -427,6 +427,30 @@ fn re_register_shortcut(app: &AppHandle, old: &str, new: &str) -> CmdResult<()> 
 }
 
 
+/// Open a URL in the system default browser.
+#[tauri::command]
+pub fn open_url(url: String) -> CmdResult<()> {
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "", &url])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Open the app data directory (where clipstack.db lives) in the system file manager.
 /// Also writes a human-readable history.txt export alongside the database.
 #[tauri::command]

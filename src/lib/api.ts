@@ -63,3 +63,8 @@ export async function reorderClips(orderedIds: number[]): Promise<void> {
 export async function openHistoryFolder(): Promise<void> {
   return invoke<void>("open_history_folder");
 }
+
+/** Open a URL in the system default browser. */
+export async function openUrl(url: string): Promise<void> {
+  return invoke<void>("open_url", { url });
+}
