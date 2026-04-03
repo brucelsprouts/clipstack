@@ -6,13 +6,21 @@ ClipStack lives silently in your menu bar or system tray, capturing everything y
 
 ---
 
+## Screenshots
+
+| Clipboard History | Settings |
+|---|---|
+| ![Clipboard History](docs/screenshots/clipboard-history.png) | ![Settings](docs/screenshots/settings.png) |
+
+---
+
 ## Features
 
 - **Automatic capture** — silently monitors your clipboard at all times
 - **Persistent history** — survives restarts, stored in a local SQLite database
 - **Instant search** — filter your entire history as you type
 - **Pin clips** — keep frequently used clips at the top
-- **One-key access** — global shortcut (`⌘⇧V` / `Ctrl+Shift+V`) opens the overlay from anywhere
+- **One-key access** — global shortcut (`Alt+Shift+V` by default, fully rebindable) opens the overlay from anywhere
 - **Keyboard navigation** — arrow keys + Enter to copy without touching the mouse
 - **Image support** — captures and previews copied images
 - **Dark & light mode** — follows system preference automatically
@@ -21,14 +29,6 @@ ClipStack lives silently in your menu bar or system tray, capturing everything y
 - **Launch at startup** — runs before you even log in
 
 ---
-
-## Screenshots
-
-> _Screenshots coming soon. Run the app locally to see it in action._
-
-| Clipboard History | Settings |
-|---|---|
-| _(screenshot placeholder)_ | _(screenshot placeholder)_ |
 
 ---
 
@@ -39,14 +39,14 @@ ClipStack lives silently in your menu bar or system tray, capturing everything y
 1. Download `ClipStack_x.x.x_aarch64.dmg` (Apple Silicon) or `ClipStack_x.x.x_x64.dmg` (Intel) from the [Releases](../../releases) page.
 2. Open the `.dmg` and drag **ClipStack** to your Applications folder.
 3. Launch ClipStack from Applications. macOS may ask you to confirm opening an app from an unidentified developer — click **Open**.
-4. ClipStack will appear in your menu bar. Press `⌘⇧V` to open the history overlay.
+4. ClipStack will appear in your menu bar. Press `Alt+Shift+V` to open the history overlay.
 
 ### Windows
 
 1. Download `ClipStack_x.x.x_x64-setup.exe` from the [Releases](../../releases) page.
 2. Run the installer and follow the prompts.
 3. ClipStack starts automatically and appears in the system tray.
-4. Press `Ctrl+Shift+V` to open the history overlay.
+4. Press `Alt+Shift+V` to open the history overlay.
 
 ---
 
@@ -65,7 +65,7 @@ ClipStack lives silently in your menu bar or system tray, capturing everything y
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/clipstack.git
+git clone https://github.com/brucelsprouts/clipstack.git
 cd clipstack
 
 # 2. Install JavaScript dependencies
@@ -99,7 +99,8 @@ clipstack/
 │   │   └── useSettings.ts      # Settings load + persist
 │   ├── lib/                    # Shared utilities
 │   │   ├── api.ts              # Typed Tauri invoke wrappers
-│   │   └── formatTime.ts       # Relative timestamp formatter
+│   │   ├── formatTime.ts       # Relative timestamp formatter
+│   │   └── theme.ts            # Theme switching utility
 │   ├── types/                  # TypeScript type definitions
 │   │   └── index.ts
 │   ├── App.tsx                 # Root component
@@ -122,11 +123,14 @@ clipstack/
 │   ├── build.rs                # Tauri build script
 │   └── tauri.conf.json         # Tauri app configuration
 │
+├── docs/
+│   └── screenshots/            # README screenshots
 ├── index.html                  # HTML entry point
 ├── vite.config.ts              # Vite bundler config
 ├── tsconfig.json               # TypeScript config
 ├── package.json                # npm dependencies + scripts
 ├── .gitignore
+├── CHANGELOG.md
 ├── LICENSE                     # MIT
 └── README.md
 ```
@@ -139,19 +143,18 @@ Open the settings panel by clicking the gear icon in the top-right of the overla
 
 | Setting | Default | Description |
 |---|---|---|
-| Global Shortcut | `CommandOrControl+Shift+V` | Keyboard shortcut to open ClipStack |
-| History Limit | 500 | Maximum clips retained (oldest deleted first) |
-| Appearance | System | Follow system / force dark / force light |
-| Launch at Startup | On | Start ClipStack when you log in |
-| Excluded Apps | _(none)_ | Apps whose clipboard events are ignored |
+| Global Shortcut | `Alt+Shift+V` | Keyboard shortcut to open ClipStack (click field to rebind) |
+| History Limit | 500 | Maximum clips retained (oldest are deleted first) |
+| Appearance | System | Follow system preference, force dark, or force light |
+| Launch at Startup | On | Start ClipStack automatically when you log in |
 
 ---
 
 ## Privacy
 
 - **All data is stored locally** in a SQLite database at:
-  - macOS: `~/Library/Application Support/com.clipstack.app/clipstack.db`
-  - Windows: `%APPDATA%\com.clipstack.app\clipstack.db`
+  - macOS: `~/Library/Application Support/com.clipstack/clipstack.db`
+  - Windows: `%APPDATA%\com.clipstack\clipstack.db`
 - **No network requests** are ever made by ClipStack.
 - **No analytics, telemetry, or crash reporting.**
 - You can delete the database file at any time to wipe all history.

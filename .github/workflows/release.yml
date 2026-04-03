@@ -4,9 +4,6 @@
 # Builds native installers on Windows and macOS, then publishes a GitHub Release
 # with all artifacts attached. GitHub auto-appends source code zips to every release.
 #
-# Required repository secret:
-#   TAURI_SIGNING_PRIVATE_KEY  — base64-encoded Tauri signing key (see README)
-#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD — passphrase for that key (can be empty)
 
 name: Release
 
@@ -64,8 +61,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "ClipStack ${{ github.ref_name }}"

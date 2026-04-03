@@ -29,7 +29,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            shortcut: "CommandOrControl+Shift+V".to_string(),
+            shortcut: "Alt+Shift+V".to_string(),
             max_history: 500,
             launch_at_startup: true,
             excluded_apps: Vec::new(),
@@ -45,6 +45,7 @@ pub struct AppState {
     pub db: Mutex<Database>,
     pub settings: Mutex<Settings>,
     /// Flag used to stop the clipboard monitor thread gracefully.
+    #[allow(dead_code)]
     pub monitor_running: Arc<AtomicBool>,
     /// Content most recently written to the clipboard by `copy_clip`.
     /// The monitor checks this to avoid re-saving a clip that the app itself wrote.

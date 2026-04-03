@@ -8,6 +8,7 @@ import { useRef, useState, useEffect, useCallback } from "react";
 import { AppSettings, ThemePreference } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { openHistoryFolder, openUrl } from "@/lib/api";
+import { applyTheme } from "@/lib/theme";
 
 interface SettingsPanelProps {
   settings: AppSettings;
@@ -104,17 +105,6 @@ function ShortcutRecorder({ value, onChange }: ShortcutRecorderProps) {
   );
 }
 
-function applyTheme(theme: string) {
-  const root = document.documentElement;
-  root.classList.add("theme-transitioning");
-  // "glass" was removed; fall back to system if an old saved value slips through
-  if (theme === "system" || theme === "glass") {
-    root.removeAttribute("data-theme");
-  } else {
-    root.setAttribute("data-theme", theme);
-  }
-  setTimeout(() => root.classList.remove("theme-transitioning"), 350);
-}
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 

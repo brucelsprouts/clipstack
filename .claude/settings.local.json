@@ -10,7 +10,26 @@
       "Bash(/c/Users/bruce/.cargo/bin/cargo --version)",
       "Bash(/c/Users/bruce/.cargo/bin/cargo check:*)",
       "Bash(git checkout:*)",
-      "Bash(cargo clean:*)"
+      "Bash(cargo clean:*)",
+      "Bash(grep -r glass --include=*.tsx --include=*.ts --include=*.jsx --include=*.js src/)",
+      "Bash(grep -r className.*clip-item --include=*.tsx src/components/)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(dir \"C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\" /b /s)",
+      "Bash(findstr /i \"\\\\.\\\\\\(png\\\\|jpg\\\\|jpeg\\\\|webp\\\\|gif\\\\\\)\\\\b\")",
+      "Bash(findstr /v \"node_modules\")",
+      "Bash(findstr /v \"src-tauri\\\\target\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\" -Recurse -Include \"*.png\",\"*.jpg\",\"*.jpeg\",\"*.webp\",\"*.gif\")",
+      "Bash(Where-Object { $_ullName -notmatch \"node_modules|src-tauri\\\\target|src-tauri\\\\icons\" })",
+      "Bash(Select-Object FullName, Name, Length)",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2'' -Recurse -Include ''*.png'',''*.jpg'',''*.jpeg'',''*.webp'',''*.gif'' | Where-Object { $_FullName -notmatch ''node_modules|src-tauri.target|src-tauri.icons'' } | Select-Object FullName, Name, Length | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2'' -File | Select-Object Name, FullName\")",
+      "Bash(powershell -Command \"New-Item -ItemType Directory -Force -Path ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\docs\\\\screenshots'' | Out-Null; Move-Item ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\1.png'' ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\docs\\\\screenshots\\\\clipboard-history.png''; Move-Item ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\2.png'' ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\docs\\\\screenshots\\\\settings.png''; Write-Host ''Done''\")",
+      "Bash(grep -r 0.1.0 /c/Users/bruce/Documents/GitHub/clipstack2 --include=*.json --include=*.toml)",
+      "Bash(wc -l /c/Users/bruce/Documents/GitHub/clipstack2/src-tauri/src/*.rs)",
+      "Bash(grep -r icon.svg /c/Users/bruce/Documents/GitHub/clipstack2 --include=*.html --include=*.tsx --include=*.ts --include=*.json)",
+      "Bash(powershell -Command \"Test-Path ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\~''\")",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force ''C:\\\\Users\\\\bruce\\\\Documents\\\\GitHub\\\\clipstack2\\\\~''; Write-Host ''Deleted''\")"
     ]
   }
 }

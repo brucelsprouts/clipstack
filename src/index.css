@@ -469,12 +469,6 @@ body {
 
 .clip-item__meta { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .clip-item__time { font-size: 10.5px; color: var(--text-3); white-space: nowrap; }
-.clip-item__kind-badge {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
-  color: var(--text-3); border: 1px solid var(--border);
-  border-radius: var(--radius-xs); padding: 0 3px; line-height: 16px;
-  white-space: nowrap; user-select: none; flex-shrink: 0;
-}
 
 .clip-item__actions {
   display: flex; gap: 1px;
@@ -597,13 +591,6 @@ body {
 .settings-card--danger .settings-card__header { color: var(--danger); }
 .settings-card--danger .settings-card__header svg { color: var(--danger); }
 
-.settings-hint { font-size: 10.5px; color: var(--text-3); margin-top: 0; line-height: 1.4; }
-.settings-hint code {
-  font-family: var(--font-mono); font-size: 10.5px;
-  background: var(--surface-hover);
-  padding: 1px 4px; border-radius: var(--radius-xs);
-  border: 1px solid var(--border);
-}
 
 /* ── Settings watermark ── */
 .settings-watermark {
@@ -720,22 +707,6 @@ body {
 .toggle input:checked + .toggle__track { background: var(--accent); }
 .toggle input:checked + .toggle__track::after { transform: translateX(15px); }
 
-/* Tag list */
-.tag-list { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin-top: 2px; }
-.tag {
-  display: inline-flex; align-items: center; gap: 3px;
-  padding: 2px 7px; background: var(--surface-hover);
-  border: 1px solid var(--border); border-radius: 99px;
-  font-size: 11.5px; color: var(--text-1);
-}
-.tag__remove {
-  display: flex; align-items: center; justify-content: center;
-  width: 14px; height: 14px; border: none; background: transparent;
-  color: var(--text-2); cursor: pointer; font-size: 14px; line-height: 1;
-  border-radius: 50%;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-.tag__remove:hover { background: var(--surface-active); color: var(--text-1); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
 .btn {

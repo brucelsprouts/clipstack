@@ -6,10 +6,8 @@
  *   - Arrow Up/Down → move selection through the clip list
  *   - Enter → copy the selected clip
  */
-import { useEffect } from "react";
+import { useEffect, MutableRefObject } from "react";
 import { hideWindow } from "@/lib/api";
-
-import { MutableRefObject } from "react";
 
 interface UseKeyboardOptions {
   itemCount: number;

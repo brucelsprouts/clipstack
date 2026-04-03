@@ -10,20 +10,9 @@ import { SearchBar } from "@/components/SearchBar";
 import { ClipList } from "@/components/ClipList";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { pasteAndHide, reorderClips } from "@/lib/api";
+import { applyTheme } from "@/lib/theme";
 
 type View = "clips" | "settings";
-
-/** Apply theme to the document root with a smooth CSS transition. */
-function applyTheme(theme: string) {
-  const root = document.documentElement;
-  root.classList.add("theme-transitioning");
-  if (theme === "system") {
-    root.removeAttribute("data-theme");
-  } else {
-    root.setAttribute("data-theme", theme);
-  }
-  setTimeout(() => root.classList.remove("theme-transitioning"), 350);
-}
 
 export default function App() {
   const [view, setView] = useState<View>("clips");
