@@ -26,7 +26,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 pub fn run() {
     env_logger::init();
 
-    let app = tauri::Builder::default()
+    let mut app = tauri::Builder::default()
         // ── Plugins ──────────────────────────────────────────────────────────
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
